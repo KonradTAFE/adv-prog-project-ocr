@@ -5,10 +5,11 @@ Drive the API to complete "interprocess communication"
 Requirements
 """
 from fastapi import FastAPI, HTTPException
+from fastapi import File, UploadFile
 from fastapi import Response
 from pydantic import BaseModel
 from pathlib import Path
-from library_basics import CodingVideo
+from library_basics import CodingVideo, CodingFrame
 app = FastAPI()
 
 # We'll create a lightweight "database" for our videos
@@ -97,4 +98,15 @@ def video_frame_ocr(vid: str, t: float):
         return coding_video.get_text_from_time(t)
     finally:
         coding_video.capture.release()
+
+@app.post("/frame/ocr")
+async def upload_frame_ocr(file:UploadFile = File(...)):
+    # Check filename/type
+    if file.content_type != "image/png":
+        return {"error": "Only PNG images are allowed."}
+
+    # Read the bytes from the uploaded file
+    image_bytes = await file.read()
+    return CodingFrame(image_bytes).ocr()
+
 

@@ -17,6 +17,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import pytesseract
+from io import BytesIO
 
 VID_PATH = Path("../resources/oop.mp4")
 PNG_PATH = Path("../test/test.png")
@@ -96,6 +97,27 @@ class CodingVideo:
     def get_text_from_time(self, t: float) -> str:
         """OCR video frame, at given time"""
         return self.get_text_from_frame( self.get_frame_number_at_time(t))
+
+
+class CodingFrame():
+    """
+    One frame for OCR. Construct from PNG bytes
+    """
+    _frame: np.ndarray
+
+    def __init__(self, image_bytes: bytes):
+        # Open image with PIL from bytes
+        image = Image.open(BytesIO(image_bytes))
+        # Convert to RGB mode (pytesseract prefers RGB)
+        image = image.convert("RGB")
+        # Convert to numpy array
+        self._frame = np.array(image)
+
+    def ocr(self) -> str:
+        # returns OCR output as string, to be sent as JSON
+        return pytesseract.image_to_string(self._frame)
+
+
 
 def test():
     """Try out your class here"""
