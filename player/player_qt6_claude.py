@@ -5,13 +5,82 @@ from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLineEdit, QLabel,
                              QFileDialog, QMessageBox, QFrame, QComboBox,
-                             QSlider, QTextEdit, QSpinBox)
+                             QSlider, QTextEdit, QSpinBox, QDialog, QDialogButtonBox)
 from PyQt6.QtCore import Qt, QTimer
 import vlc
 import requests
 import tempfile
 import time
 import os
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent, config):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.config = config
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # OCR API URL
+        api_layout = QHBoxLayout()
+        api_layout.addWidget(QLabel("OCR API URL:"))
+        self.api_url_edit = QLineEdit()
+        self.api_url_edit.setText(config.get('api_url', 'http://localhost:8000/frame/ocr'))
+        api_layout.addWidget(self.api_url_edit)
+        layout.addLayout(api_layout)
+
+        # Skip intervals
+        skip_layout = QHBoxLayout()
+        skip_layout.addWidget(QLabel("Short skip:"))
+        self.skip_short_spin = QSpinBox()
+        self.skip_short_spin.setRange(1, 60)
+        self.skip_short_spin.setValue(config.get('skip_short', 5))
+        self.skip_short_spin.setSuffix(" seconds")
+        skip_layout.addWidget(self.skip_short_spin)
+
+        skip_layout.addWidget(QLabel("Long skip:"))
+        self.skip_long_spin = QSpinBox()
+        self.skip_long_spin.setRange(1, 300)
+        self.skip_long_spin.setValue(config.get('skip_long', 30))
+        self.skip_long_spin.setSuffix(" seconds")
+        skip_layout.addWidget(self.skip_long_spin)
+        layout.addLayout(skip_layout)
+
+        # Clear history button
+        clear_btn = QPushButton("Clear Recent History")
+        clear_btn.clicked.connect(self.clear_history)
+        layout.addWidget(clear_btn)
+
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def clear_history(self):
+        """Clear recent history"""
+        reply = QMessageBox.question(
+            self,
+            "Clear History",
+            "Are you sure you want to clear recent history?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.config['recent_items'] = []
+            QMessageBox.information(self, "Success", "Recent history cleared")
+
+    def get_settings(self):
+        """Return the settings as a dict"""
+        return {
+            'api_url': self.api_url_edit.text().strip(),
+            'skip_short': self.skip_short_spin.value(),
+            'skip_long': self.skip_long_spin.value()
+        }
+
 
 class VideoPlayer(QMainWindow):
     def __init__(self):
@@ -29,6 +98,7 @@ class VideoPlayer(QMainWindow):
         self.recent_items = self.config.get('recent_items', [])
         self.skip_short = self.config.get('skip_short', 5)
         self.skip_long = self.config.get('skip_long', 30)
+        self.api_url = self.config.get('api_url', 'http://localhost:8000/frame/ocr')
 
         # Timer for updating slider
         self.timer = QTimer(self)
@@ -55,6 +125,12 @@ class VideoPlayer(QMainWindow):
         self.recent_combo.addItems(self.recent_items)
         self.recent_combo.currentTextChanged.connect(self.on_recent_selected)
         recent_layout.addWidget(self.recent_combo)
+
+        # Settings button
+        settings_btn = QPushButton("⚙ Settings")
+        settings_btn.clicked.connect(self.open_settings)
+        recent_layout.addWidget(settings_btn)
+
         layout.addLayout(recent_layout)
 
         # Top control layout
@@ -116,23 +192,6 @@ class VideoPlayer(QMainWindow):
         skip_forward_long_btn = QPushButton(f"{self.skip_long}s ▶▶")
         skip_forward_long_btn.clicked.connect(lambda: self.skip(self.skip_long))
         time_control_layout.addWidget(skip_forward_long_btn)
-
-        # Skip interval settings
-        time_control_layout.addWidget(QLabel("Short:"))
-        self.skip_short_spin = QSpinBox()
-        self.skip_short_spin.setRange(1, 60)
-        self.skip_short_spin.setValue(self.skip_short)
-        self.skip_short_spin.setSuffix("s")
-        self.skip_short_spin.valueChanged.connect(self.update_skip_buttons)
-        time_control_layout.addWidget(self.skip_short_spin)
-
-        time_control_layout.addWidget(QLabel("Long:"))
-        self.skip_long_spin = QSpinBox()
-        self.skip_long_spin.setRange(1, 300)
-        self.skip_long_spin.setValue(self.skip_long)
-        self.skip_long_spin.setSuffix("s")
-        self.skip_long_spin.valueChanged.connect(self.update_skip_buttons)
-        time_control_layout.addWidget(self.skip_long_spin)
 
         layout.addLayout(time_control_layout)
 
@@ -207,8 +266,9 @@ class VideoPlayer(QMainWindow):
         """Save config to file"""
         try:
             self.config['recent_items'] = self.recent_items
-            self.config['skip_short'] = self.skip_short_spin.value()
-            self.config['skip_long'] = self.skip_long_spin.value()
+            self.config['skip_short'] = self.skip_short
+            self.config['skip_long'] = self.skip_long
+            self.config['api_url'] = self.api_url
             with open(self.config_path, 'w') as f:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
@@ -232,6 +292,30 @@ class VideoPlayer(QMainWindow):
         """Handle selection from recent items dropdown"""
         if text and text != "-- Select recent file or URL --":
             self.load_media(text)
+
+    def open_settings(self):
+        """Open settings dialog"""
+        dialog = SettingsDialog(self, self.config)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            settings = dialog.get_settings()
+            self.api_url = settings['api_url']
+            self.skip_short = settings['skip_short']
+            self.skip_long = settings['skip_long']
+
+            # Update button labels
+            self.skip_back_long_btn.setText(f"◀◀ {self.skip_long}s")
+            self.skip_back_short_btn.setText(f"◀ {self.skip_short}s")
+            self.skip_forward_short_btn.setText(f"{self.skip_short}s ▶")
+            self.skip_forward_long_btn.setText(f"{self.skip_long}s ▶▶")
+
+            # Update recent items if history was cleared
+            self.recent_items = self.config.get('recent_items', [])
+            self.recent_combo.clear()
+            self.recent_combo.addItem("-- Select recent file or URL --")
+            self.recent_combo.addItems(self.recent_items)
+
+            # Save config
+            self.save_config()
 
     def update_slider(self):
         """Update slider position based on video progress"""
@@ -290,18 +374,6 @@ class VideoPlayer(QMainWindow):
         current_time = self.player.get_time()
         new_time = max(0, current_time + (seconds * 1000))
         self.player.set_time(int(new_time))
-
-    def update_skip_buttons(self):
-        """Update skip button labels when values change"""
-        self.skip_short = self.skip_short_spin.value()
-        self.skip_long = self.skip_long_spin.value()
-
-        self.skip_back_long_btn.setText(f"◀◀ {self.skip_long}s")
-        self.skip_back_short_btn.setText(f"◀ {self.skip_short}s")
-        self.skip_forward_short_btn.setText(f"{self.skip_short}s ▶")
-        self.skip_forward_long_btn.setText(f"{self.skip_long}s ▶▶")
-
-        self.save_config()
 
     def change_speed(self, speed_text):
         """Change playback speed"""
@@ -417,6 +489,8 @@ class VideoPlayer(QMainWindow):
 
         else:
             QMessageBox.warning(self, "Warning", "No video playing")
+
+
     def closeEvent(self, event):
         """Clean up VLC player on close"""
         self.player.stop()
