@@ -12,3 +12,4 @@ wheels/
 # myk:
 resources/
 test/
+.idea/

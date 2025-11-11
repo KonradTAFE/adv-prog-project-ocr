@@ -1,10 +1,12 @@
 """
-player.py
+player_qt6_gemini.py
 Myk: Mike Holland, J336025, from 4/11/2025
 
 """
 
 import sys
+
+from PyQt6.QtCore import QUrl
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLineEdit, QPushButton
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import vlc
@@ -56,7 +58,7 @@ class VideoPlayer(QMainWindow):
         if not video_source:
             return
         if video_source.startswith("http"):  # URL: open in embedded browser and play with VLC
-            self.browser.load(video_source)
+            self.browser.load(QUrl(video_source))   ## TODO: fix type. Need QUrl or QWebEngineHttpRequest
         # Set VLC media to the URL or local file
         media = self.vlc_instance.media_new(video_source)
         self.media_player.set_media(media)
