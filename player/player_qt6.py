@@ -15,16 +15,14 @@ import sys
 import json
 import platform
 from pathlib import Path
+
+from PyQt6.QtGui import QShortcut, QKeySequence
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLineEdit, QLabel,
                              QFileDialog, QMessageBox, QFrame, QComboBox,
                              QSlider, QTextEdit, QSpinBox, QDialog, QDialogButtonBox)
 from PyQt6.QtCore import Qt, QTimer
 import vlc
-import requests
-import tempfile
-import time
-import os
 
 class SettingsDialog(QDialog):
     """
@@ -66,6 +64,7 @@ class SettingsDialog(QDialog):
         # Clear history button
         clear_btn = QPushButton("Clear Recent History")
         clear_btn.clicked.connect(self.clear_history)
+        clear_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         layout.addWidget(clear_btn)
 
         # Dialog buttons
@@ -149,6 +148,7 @@ class VideoPlayer(QMainWindow):
         # Settings button
         settings_btn = QPushButton("⚙ Settings")
         settings_btn.clicked.connect(self.open_settings)
+        settings_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         recent_layout.addWidget(settings_btn)
 
         layout.addLayout(recent_layout)
@@ -159,6 +159,7 @@ class VideoPlayer(QMainWindow):
         # File selection button
         open_btn = QPushButton("Open Local File")
         open_btn.clicked.connect(self.open_file)
+        open_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         control_layout.addWidget(open_btn)
 
         # URL entry
@@ -170,6 +171,7 @@ class VideoPlayer(QMainWindow):
 
         load_url_btn = QPushButton("Load URL")
         load_url_btn.clicked.connect(self.load_url)
+        load_url_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         control_layout.addWidget(load_url_btn)
 
         layout.addLayout(control_layout)
@@ -197,28 +199,31 @@ class VideoPlayer(QMainWindow):
         time_control_layout.addStretch()
 
         # Skip controls
-        skip_back_long_btn = QPushButton(f"⏮ {self.skip_long}s")
+        skip_back_long_btn = QPushButton(f"◀◀ {self.skip_long}s")
         skip_back_long_btn.clicked.connect(lambda: self.skip(-self.skip_long))
+        skip_back_long_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         time_control_layout.addWidget(skip_back_long_btn)
 
         skip_back_short_btn = QPushButton(f"◀ {self.skip_short}s")
         skip_back_short_btn.clicked.connect(lambda: self.skip(-self.skip_short))
+        skip_back_short_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         time_control_layout.addWidget(skip_back_short_btn)
 
         skip_forward_short_btn = QPushButton(f"{self.skip_short}s ▶")
         skip_forward_short_btn.clicked.connect(lambda: self.skip(self.skip_short))
+        skip_forward_short_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         time_control_layout.addWidget(skip_forward_short_btn)
 
-        skip_forward_long_btn = QPushButton(f"{self.skip_long}s ⏭")
+        skip_forward_long_btn = QPushButton(f"{self.skip_long}s ▶▶")
         skip_forward_long_btn.clicked.connect(lambda: self.skip(self.skip_long))
+        skip_forward_long_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         time_control_layout.addWidget(skip_forward_long_btn)
-
-
 
         # skipping to chosen timestamp
         enter_timestamp = QLineEdit()
         skip_to_timestamp_button = QPushButton("Go to timestamp")
         skip_to_timestamp_button.clicked.connect(lambda: self.seek_to_timestamp(enter_timestamp.text()))
+        skip_to_timestamp_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         time_control_layout.addWidget(enter_timestamp)
         time_control_layout.addWidget(skip_to_timestamp_button)
 
@@ -228,20 +233,22 @@ class VideoPlayer(QMainWindow):
         playback_layout = QHBoxLayout()
 
         play_btn = QPushButton("▶")
-        play_btn.setAccessibleName("play")      # alt text for screen reader 
+        play_btn.setAccessibleName("play")      # alt text for screen reader
         play_btn.clicked.connect(self.play)
+        play_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         playback_layout.addWidget(play_btn)
 
         pause_btn = QPushButton("⏸")
         pause_btn.setAccessibleName("pause")
         pause_btn.clicked.connect(self.pause)
+        pause_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         playback_layout.addWidget(pause_btn)
 
         stop_btn = QPushButton("■")
         stop_btn.setAccessibleName("stop")
         stop_btn.clicked.connect(self.stop)
+        stop_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         playback_layout.addWidget(stop_btn)
-
 
         playback_layout.addWidget(QLabel("Speed:"))
         self.speed_combo = QComboBox()
@@ -255,6 +262,7 @@ class VideoPlayer(QMainWindow):
 
         capture_btn = QPushButton("OCR Frame")
         capture_btn.clicked.connect(self.capture_frame)
+        capture_btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         playback_layout.addWidget(capture_btn)
 
         layout.addLayout(playback_layout)
@@ -276,6 +284,70 @@ class VideoPlayer(QMainWindow):
         self.skip_back_short_btn = skip_back_short_btn
         self.skip_forward_short_btn = skip_forward_short_btn
         self.skip_forward_long_btn = skip_forward_long_btn
+
+        # Set up keyboard shortcuts
+        self.setup_shortcuts()
+
+        # Set tab order for better keyboard navigation
+        self.setTabOrder(self.recent_combo, settings_btn)
+        self.setTabOrder(settings_btn, open_btn)
+        self.setTabOrder(open_btn, self.url_entry)
+        self.setTabOrder(self.url_entry, load_url_btn)
+        self.setTabOrder(load_url_btn, self.position_slider)
+        self.setTabOrder(self.position_slider, skip_back_long_btn)
+        self.setTabOrder(skip_back_long_btn, skip_back_short_btn)
+        self.setTabOrder(skip_back_short_btn, skip_forward_short_btn)
+        self.setTabOrder(skip_forward_short_btn, skip_forward_long_btn)
+        self.setTabOrder(skip_forward_long_btn, enter_timestamp)
+        self.setTabOrder(enter_timestamp, skip_to_timestamp_button)
+        self.setTabOrder(skip_to_timestamp_button, play_btn)
+        self.setTabOrder(play_btn, pause_btn)
+        self.setTabOrder(pause_btn, stop_btn)
+        self.setTabOrder(stop_btn, self.speed_combo)
+        self.setTabOrder(self.speed_combo, capture_btn)
+
+    def setup_shortcuts(self):
+        """Setup keyboard shortcuts"""
+        # Playback controls
+        QShortcut(QKeySequence(Qt.Key.Key_Space), self, self.toggle_play_pause)
+        QShortcut(QKeySequence("K"), self, self.toggle_play_pause)  # YouTube style
+        QShortcut(QKeySequence("S"), self, self.stop)
+
+        # Seeking
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self, lambda: self.skip(-self.skip_short))
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self, lambda: self.skip(self.skip_short))
+        QShortcut(QKeySequence("J"), self, lambda: self.skip(-self.skip_long))  # YouTube style
+        QShortcut(QKeySequence("L"), self, lambda: self.skip(self.skip_long))  # YouTube style
+
+        # Speed controls
+        QShortcut(QKeySequence("Shift+,"), self, self.decrease_speed)  # Slower
+        QShortcut(QKeySequence("Shift+."), self, self.increase_speed)  # Faster
+
+        # Frame capture
+        QShortcut(QKeySequence("C"), self, self.capture_frame)
+
+        # File operations
+        QShortcut(QKeySequence("Ctrl+O"), self, self.open_file)
+        QShortcut(QKeySequence("Ctrl+,"), self, self.open_settings)  # Standard settings shortcut
+
+    def toggle_play_pause(self):
+        """Toggle between play and pause"""
+        if self.player.is_playing():
+            self.pause()
+        else:
+            self.play()
+
+    def decrease_speed(self):
+        """Decrease playback speed"""
+        current_index = self.speed_combo.currentIndex()
+        if current_index > 0:
+            self.speed_combo.setCurrentIndex(current_index - 1)
+
+    def increase_speed(self):
+        """Increase playback speed"""
+        current_index = self.speed_combo.currentIndex()
+        if current_index < self.speed_combo.count() - 1:
+            self.speed_combo.setCurrentIndex(current_index + 1)
 
     def get_config_path(self):
         """Get platform-appropriate config file path"""
@@ -407,8 +479,6 @@ class VideoPlayer(QMainWindow):
             new_time = int((position / 1000) * length)
             self.player.set_time(new_time)
 
-
-
     def seek_to_timestamp(self, timestamp):
         """Seek video to chosen timestamp"""
         length = self.player.get_length()
@@ -427,9 +497,6 @@ class VideoPlayer(QMainWindow):
             return ms
         except ValueError:
             return "Incorrect timestamp format"
-
-
-
 
     def skip(self, seconds):
         """Skip forward or backward by specified seconds"""
@@ -550,7 +617,7 @@ class VideoPlayer(QMainWindow):
                 with open(snapshot_path, 'rb') as f:
                     files = {'file': ('frame.png', f, 'image/png')}
                     response = requests.post(
-                        'http://localhost:8000/frame/ocr',
+                        self.api_url,
                         files=files,
                         headers={'accept': 'application/json'}
                     )
@@ -561,12 +628,27 @@ class VideoPlayer(QMainWindow):
 
                 # Display result
                 if response.status_code == 200:
-                    # myk: replace literal \n in string with newlines, remove surrounding quotes
-                    ocr_text = response.text.replace("\\n", "\n")[1:-1]
+                    # Parse JSON response properly
+                    try:
+                        # If response is JSON, parse it
+                        ocr_data = response.json()
+                        # Handle different possible response formats
+                        if isinstance(ocr_data, dict):
+                            ocr_text = ocr_data.get('text', str(ocr_data))
+                        else:
+                            ocr_text = str(ocr_data)
+                    except json.JSONDecodeError:
+                        # If not JSON, treat as plain text
+                        ocr_text = response.text
+
                     self.text_display.append(ocr_text)
-                    # self.text_display.append("")
+                    # Auto-scroll to bottom
+                    scrollbar = self.text_display.verticalScrollBar()
+                    scrollbar.setValue(scrollbar.maximum())
                 else:
                     self.text_display.append(f"OCR Error: {response.status_code} - {response.text}")
+                    scrollbar = self.text_display.verticalScrollBar()
+                    scrollbar.setValue(scrollbar.maximum())
 
             except requests.exceptions.ConnectionError:
                 QMessageBox.critical(self, "Connection Error",
@@ -576,7 +658,6 @@ class VideoPlayer(QMainWindow):
 
         else:
             QMessageBox.warning(self, "Warning", "No video playing")
-
 
     def closeEvent(self, event):
         """Clean up VLC player on close"""
