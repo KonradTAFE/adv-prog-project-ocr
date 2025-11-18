@@ -197,7 +197,7 @@ class VideoPlayer(QMainWindow):
         time_control_layout.addStretch()
 
         # Skip controls
-        skip_back_long_btn = QPushButton(f"◀◀ {self.skip_long}s")
+        skip_back_long_btn = QPushButton(f"⏮ {self.skip_long}s")
         skip_back_long_btn.clicked.connect(lambda: self.skip(-self.skip_long))
         time_control_layout.addWidget(skip_back_long_btn)
 
@@ -209,7 +209,7 @@ class VideoPlayer(QMainWindow):
         skip_forward_short_btn.clicked.connect(lambda: self.skip(self.skip_short))
         time_control_layout.addWidget(skip_forward_short_btn)
 
-        skip_forward_long_btn = QPushButton(f"{self.skip_long}s ▶▶")
+        skip_forward_long_btn = QPushButton(f"{self.skip_long}s ⏭")
         skip_forward_long_btn.clicked.connect(lambda: self.skip(self.skip_long))
         time_control_layout.addWidget(skip_forward_long_btn)
 
@@ -222,22 +222,23 @@ class VideoPlayer(QMainWindow):
         time_control_layout.addWidget(enter_timestamp)
         time_control_layout.addWidget(skip_to_timestamp_button)
 
-
-
         layout.addLayout(time_control_layout)
 
         # Playback controls and speed
         playback_layout = QHBoxLayout()
 
-        play_btn = QPushButton("Play")
+        play_btn = QPushButton("▶")
+        play_btn.setAccessibleName("play")      # alt text for screen reader 
         play_btn.clicked.connect(self.play)
         playback_layout.addWidget(play_btn)
 
-        pause_btn = QPushButton("Pause")
+        pause_btn = QPushButton("⏸")
+        pause_btn.setAccessibleName("pause")
         pause_btn.clicked.connect(self.pause)
         playback_layout.addWidget(pause_btn)
 
-        stop_btn = QPushButton("Stop")
+        stop_btn = QPushButton("■")
+        stop_btn.setAccessibleName("stop")
         stop_btn.clicked.connect(self.stop)
         playback_layout.addWidget(stop_btn)
 
@@ -258,11 +259,16 @@ class VideoPlayer(QMainWindow):
 
         layout.addLayout(playback_layout)
 
-        # Text display area (4 rows visible, scrollable)
+        # Text display area (10 rows visible, scrollable)
         self.text_display = QTextEdit()
         self.text_display.setReadOnly(True)
-        self.text_display.setMaximumHeight(100)
-        self.text_display.setPlaceholderText("OCR text will appear here...")
+        # Set height for approximately 10 lines of text
+        font_metrics = self.text_display.fontMetrics()
+        line_height = font_metrics.lineSpacing()
+        self.text_display.setMinimumHeight(line_height * 10 + 10)  # 10 lines + padding
+        self.text_display.setMaximumHeight(line_height * 10 + 10)
+        self.text_display.setPlaceholderText("Captured text will appear here...")
+        self.text_display.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         layout.addWidget(self.text_display)
 
         # Store references to skip buttons for updating labels
@@ -442,6 +448,31 @@ class VideoPlayer(QMainWindow):
         if not hasattr(self, '_embedded'):
             self._embedded = True
             self.embed_video()
+
+    def moveEvent(self, event):
+        """Re-embed video when window is moved (fixes macOS multi-display issues)"""
+        super().moveEvent(event)
+        if hasattr(self, '_embedded') and platform.system() == "Darwin":
+            # Force entire window to refresh
+            QTimer.singleShot(50, self.refresh_window)
+
+    def resizeEvent(self, event):
+        """Re-embed video when window is resized (fixes macOS rendering issues)"""
+        super().resizeEvent(event)
+        if hasattr(self, '_embedded') and platform.system() == "Darwin":
+            QTimer.singleShot(50, self.refresh_window)
+
+    def refresh_window(self):
+        """Force entire window to refresh"""
+        if platform.system() == "Darwin":
+            # Re-embed video
+            self.embed_video()
+            # Force entire window repaint
+            self.update()
+            self.repaint()
+            # Also force central widget
+            self.centralWidget().update()
+            self.centralWidget().repaint()
 
     def embed_video(self):
         """Embed VLC player into the Qt window"""

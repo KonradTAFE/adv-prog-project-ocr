@@ -19,6 +19,11 @@ from PIL import Image
 import pytesseract
 from io import BytesIO
 
+# from https://pypi.org/project/pytesseract/
+# If you don't have tesseract executable in your PATH, include the following:
+# pytesseract.pytesseract.tesseract_cmd = r'<full_path_to_your_tesseract_executable>'
+# Example tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract'
+
 VID_PATH = Path("../resources/oop.mp4")
 PNG_PATH = Path("../test/test.png")
 
