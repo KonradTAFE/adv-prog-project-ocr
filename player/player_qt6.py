@@ -21,10 +21,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QSlider, QTextEdit, QSpinBox, QDialog, QDialogButtonBox)
 from PyQt6.QtCore import Qt, QTimer
 import vlc
-# import requests
-# import tempfile
-# import time
-# import os
+import requests
+import tempfile
+import time
+import os
 
 class SettingsDialog(QDialog):
     """
