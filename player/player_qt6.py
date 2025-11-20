@@ -220,11 +220,15 @@ class VideoPlayer(QMainWindow):
         time_control_layout.addWidget(skip_forward_long_btn)
 
         # skipping to chosen timestamp
-        enter_timestamp = QLineEdit()
+        enter_minutes = QLineEdit()
+        enter_minutes.setPlaceholderText("Minutes")
+        enter_seconds = QLineEdit()
+        enter_seconds.setPlaceholderText("Seconds")
         skip_to_timestamp_button = QPushButton("Go to timestamp")
-        skip_to_timestamp_button.clicked.connect(lambda: self.seek_to_timestamp(enter_timestamp.text()))
+        skip_to_timestamp_button.clicked.connect(lambda: self.seek_to_timestamp(enter_minutes.text(), enter_seconds.text()))
         skip_to_timestamp_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        time_control_layout.addWidget(enter_timestamp)
+        time_control_layout.addWidget(enter_minutes)
+        time_control_layout.addWidget(enter_seconds)
         time_control_layout.addWidget(skip_to_timestamp_button)
 
         layout.addLayout(time_control_layout)
@@ -298,8 +302,9 @@ class VideoPlayer(QMainWindow):
         self.setTabOrder(skip_back_long_btn, skip_back_short_btn)
         self.setTabOrder(skip_back_short_btn, skip_forward_short_btn)
         self.setTabOrder(skip_forward_short_btn, skip_forward_long_btn)
-        self.setTabOrder(skip_forward_long_btn, enter_timestamp)
-        self.setTabOrder(enter_timestamp, skip_to_timestamp_button)
+        self.setTabOrder(skip_forward_long_btn, enter_minutes)
+        self.setTabOrder(enter_minutes, enter_seconds)
+        self.setTabOrder(enter_seconds, skip_to_timestamp_button)
         self.setTabOrder(skip_to_timestamp_button, play_btn)
         self.setTabOrder(play_btn, pause_btn)
         self.setTabOrder(pause_btn, stop_btn)
@@ -479,24 +484,41 @@ class VideoPlayer(QMainWindow):
             new_time = int((position / 1000) * length)
             self.player.set_time(new_time)
 
-    def seek_to_timestamp(self, timestamp):
+    def seek_to_timestamp(self, minutes, seconds):
         """Seek video to chosen timestamp"""
+        # get the video length
         length = self.player.get_length()
-        timestamp = self.format_frames(timestamp)
+
+        # verify if the minutes and seconds have been entered
+        if minutes == "":
+            minutes = 0
+        if seconds == "":
+            seconds = 0
+
+        #verify user input - only numerical values or warning
+        try:
+            minutes = int(minutes)
+            seconds = int(seconds)
+        except:
+            QMessageBox.warning(self, "Warning", "Please enter correct minutes and seconds")
+            return
+
+        # calculate timestamp based on the entered minutes and seconds
+        timestamp = self.format_frames(minutes, seconds)
+
+        # verify timestamp is within video length and access the timestamp or show warning
         if length > 0 and timestamp <= length:
             self.player.set_time(timestamp)
+        elif timestamp > length:
+            QMessageBox.warning(self, "Warning", "Please choose time within the video length")
+            return
 
-    def format_frames(self, timestamp):
+    def format_frames(self, minutes, seconds):
         """Format timestamp to frames"""
-        try:
-            timestamp.split(":")
-            minutes = int(timestamp.split(":")[0])
-            seconds = int(timestamp.split(":")[1])
-            minutes_to_seconds = minutes * 60
-            ms = (seconds + minutes_to_seconds) * 1000
-            return ms
-        except ValueError:
-            return "Incorrect timestamp format"
+        minutes_to_seconds = minutes * 60
+        ms = (seconds + minutes_to_seconds) * 1000
+        return ms
+
 
     def skip(self, seconds):
         """Skip forward or backward by specified seconds"""

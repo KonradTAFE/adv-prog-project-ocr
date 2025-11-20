@@ -34,16 +34,16 @@ Client (Player) requires:
 
 ## Getting Started
 
-[//]: # (Download the repo, and run `player/player_qt6.py` .)
+Download the repo, and run `player/player_qt6.py` .
 
-[//]: # (You should be able to play a local file or URL.)
+You should be able to play a local file or URL.
 
-[//]: # ()
-[//]: # (To use the "OCR frame" button, the server must be running)
 
-[//]: # (`$ source .venv/bin/activate`)
+To use the "OCR frame" button, the server must be running
 
-[//]: # (`$ fastapi preliminary/simple_api.py`)
+`$ source .venv/bin/activate`
+
+`$ fastapi preliminary/simple_api.py`
 
  ### Running the project on Windows (without using uv)
  1. Fork the repo and clone it locally
